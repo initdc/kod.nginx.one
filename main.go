@@ -1,15 +1,20 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/gin-gonic/gin"
-	_ "github.com/heroku/x/hmetrics/onload"
+	"strings"
 )
 
 func main() {
+	ins, err := ioutil.ReadFile("./sh/install.sh")
+	if err != nil {
+		panic(err)
+	}
+
 	port := os.Getenv("PORT")
 
 	if port == "" {
@@ -18,11 +23,19 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Logger())
-	router.LoadHTMLGlob("templates/*.tmpl.html")
-	router.Static("/static", "static")
+	router.LoadHTMLGlob("templates/index.html")
+
+	router.StaticFile("/favicon.ico", "./favicon.png")
 
 	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.tmpl.html", nil)
+		ua := c.Request.Header.Get("User-Agent")
+		if strings.Contains(ua, "Gecko") {
+			c.HTML(http.StatusOK, "index.html", gin.H{
+				"sh": string(ins),
+			})
+		} else {
+			c.File("./sh/install.sh")
+		}
 	})
 
 	router.Run(":" + port)
